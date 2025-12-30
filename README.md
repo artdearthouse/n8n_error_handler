@@ -2,6 +2,8 @@
 
 This repository contains a robust error handling system for n8n, featuring database logging, Telegram notifications with Webhook fallback, and a self-healing bootstrap mechanism.
 
+**Repo**: [artdearthouse/n8n_error_handler](https://github.com/artdearthouse/n8n_error_handler)
+
 ## Prerequisites
 
 1.  **PostgreSQL Database**: Accessible by your n8n instances.

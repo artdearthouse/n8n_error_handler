@@ -13,7 +13,7 @@
         },
         {
             "parameters": {
-                "url": "https://raw.githubusercontent.com/YOUR_GIT/REPO/main/workflows/error_capture.json",
+                "url": "https://raw.githubusercontent.com/artdearthouse/n8n_error_handler/main/workflows/error_capture.json",
                 "method": "GET",
                 "dataPropertyName": "workflow_data",
                 "responseFormat": "json"
@@ -25,6 +25,45 @@
                 300,
                 300
             ]
+        },
+        {
+            "parameters": {
+                "url": "https://raw.githubusercontent.com/artdearthouse/n8n_error_handler/main/workflows/bootstrap_manager.json",
+                "method": "GET",
+                "responseFormat": "json"
+            },
+            "name": "Fetch Bootstrap WF",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1300,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "workflow",
+                "operation": "update",
+                "id": "={{$workflow.id}}",
+                "updateFields": {
+                    "name": "Bootstrap Error Handler",
+                    "nodes": "={{$json.nodes}}",
+                    "connections": "={{$json.connections}}"
+                }
+            },
+            "name": "Self Update",
+            "type": "n8n-nodes-base.n8n",
+            "typeVersion": 1,
+            "position": [
+                1500,
+                300
+            ],
+            "credentials": {
+                "n8nApi": {
+                    "id": "YOUR_N8N_API_CREDENTIAL_ID",
+                    "name": "n8n API"
+                }
+            }
         },
         {
             "parameters": {
@@ -153,6 +192,28 @@
                 [
                     {
                         "node": "Update Workflows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update Workflows": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Bootstrap WF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Bootstrap WF": {
+            "main": [
+                [
+                    {
+                        "node": "Self Update",
                         "type": "main",
                         "index": 0
                     }
