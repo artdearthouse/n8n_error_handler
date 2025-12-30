@@ -41,6 +41,25 @@
         {
             "parameters": {
                 "operation": "executeQuery",
+                "query": "CREATE TABLE IF NOT EXISTS error_logs (\n    id SERIAL PRIMARY KEY,\n    workflow_name TEXT,\n    execution_id TEXT,\n    error_message TEXT,\n    stack_trace TEXT,\n    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n    sent_to_tg BOOLEAN DEFAULT FALSE,\n    processing_attempts INTEGER DEFAULT 0,\n    last_attempt TIMESTAMP WITH TIME ZONE\n);"
+            },
+            "name": "Init DB",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                200,
+                450
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+                    "name": "Postgres Default"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
                 "query": "INSERT INTO error_logs (workflow_name, execution_id, error_message, stack_trace) VALUES ($1, $2, $3, $4)",
                 "additionalFields": {
                     "queryParams": "={{$json.workflow.name}},={{$json.execution.id}},={{$json.message}},={{$json.stack}}"
@@ -50,7 +69,7 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
             "position": [
-                250,
+                450,
                 600
             ],
             "credentials": {
@@ -87,7 +106,7 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
             "position": [
-                200,
+                450,
                 900
             ],
             "credentials": {
@@ -106,7 +125,7 @@
             "type": "n8n-nodes-base.splitInBatches",
             "typeVersion": 1,
             "position": [
-                400,
+                650,
                 900
             ]
         },
@@ -118,7 +137,7 @@
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                600,
+                850,
                 900
             ]
         },
@@ -135,7 +154,7 @@
             "type": "n8n-nodes-base.telegram",
             "typeVersion": 1,
             "position": [
-                800,
+                1050,
                 800
             ],
             "credentials": {
@@ -158,7 +177,7 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
             "position": [
-                1000,
+                1250,
                 1000
             ]
         },
@@ -174,7 +193,7 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
             "position": [
-                1200,
+                1450,
                 800
             ],
             "credentials": {
@@ -196,7 +215,7 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
             "position": [
-                1200,
+                1450,
                 1100
             ],
             "credentials": {
@@ -212,7 +231,7 @@
             "main": [
                 [
                     {
-                        "node": "Log to DB",
+                        "node": "Init DB",
                         "type": "main",
                         "index": 0
                     }
@@ -223,11 +242,32 @@
             "main": [
                 [
                     {
+                        "node": "Init DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Init DB": {
+            "main": [
+                [
+                    {
+                        "node": "Log to DB",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
                         "node": "Fetch Pending",
                         "type": "main",
                         "index": 0
                     }
                 ]
+            ]
+        },
+        "Log to DB": {
+            "main": [
+                []
             ]
         },
         "Fetch Pending": {
