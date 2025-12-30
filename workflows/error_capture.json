@@ -1,5 +1,5 @@
 {
-  "name": "Universal Error Capture",
+  "name": "n8n_error_handler",
   "nodes": [
     {
       "parameters": {},
@@ -16,7 +16,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO error_logs (workflow_name, execution_id, error_message, stack_trace) VALUES ($1, $2, $3, $4)",
         "additionalFields": {
-            "queryParams": "={{$json.workflow.name}},={{$json.execution.id}},={{$json.message}},={{$json.stack}}"
+          "queryParams": "={{$json.workflow.name}},={{$json.execution.id}},={{$json.message}},={{$json.stack}}"
         }
       },
       "name": "Log to DB",

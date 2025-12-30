@@ -28,21 +28,23 @@ Ensure the following credentials exist in your n8n instance (names can be adjust
 ### 3. Deploy via Bootstrap
 1.  Create a new Workflow in n8n.
 2.  Import `workflows/bootstrap_manager.json` manually (Copy-Paste JSON content).
-3.  **Edit**:
-    *   `Fetch Capture WF` node: Update the URL to your Raw Git file for `workflows/error_capture.json`.
-    *   *(Optional)* You can extend it to also fetch/update `error_processor.json`.
+3.  **Configure**:
+    *   Open the `Configuration` node (first node).
+    *   Fill in your values for:
+        *   `POSTGRES_CREDENTIAL_ID`
+        *   `TELEGRAM_CREDENTIAL_ID`
+        *   `N8N_API_CREDENTIAL_ID`
+        *   `TELEGRAM_CHAT_ID`
+        *   `TELEGRAM_THREAD_ID`
+        *   `WEBHOOK_URL`
 4.  Execute the workflow manually.
 
 **What happens:**
-*   It downloads the `Error Capture` workflow.
-*   It creates/updates it in your n8n instance.
-*   It scans **ALL** other workflows.
-*   It updates their `Settings -> Error Workflow` to point to the new `Error Capture` workflow.
+*   It downloads `n8n_error_handler` and `Error Processor`.
+*   It **injects your credentials** into them automatically.
+*   It deploys/updates them in your n8n instance.
+*   It configured ALL other workflows to use `n8n_error_handler` as their Error Workflow.
+*   It updates itself to the latest version.
 
-### 4. Deploy Processor
-1.  Import `workflows/error_processor.json`.
-2.  Update credential references if needed.
-3.  Activate the workflow.
-
-## maintenance
+### 4. Maintenance
 *   To update the Error Handler logic across all servers, simple push changes to Git, and run `Bootstrap Manager` on each server.
