@@ -253,16 +253,6 @@
                         "node": "Fetch Capture",
                         "type": "main",
                         "index": 0
-                    },
-                    {
-                        "node": "Fetch Processor",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Fetch Bootstrap",
-                        "type": "main",
-                        "index": 0
                     }
                 ]
             ]
@@ -271,7 +261,7 @@
             "main": [
                 [
                     {
-                        "node": "Prepare Workflows",
+                        "node": "Fetch Processor",
                         "type": "main",
                         "index": 0
                     }
@@ -282,7 +272,7 @@
             "main": [
                 [
                     {
-                        "node": "Prepare Workflows",
+                        "node": "Fetch Bootstrap",
                         "type": "main",
                         "index": 0
                     }
@@ -307,11 +297,6 @@
                         "node": "Upsert Capture",
                         "type": "main",
                         "index": 0
-                    },
-                    {
-                        "node": "Upsert Processor",
-                        "type": "main",
-                        "index": 0
                     }
                 ]
             ]
@@ -320,7 +305,7 @@
             "main": [
                 [
                     {
-                        "node": "Get All Workflows",
+                        "node": "Upsert Processor",
                         "type": "main",
                         "index": 0
                     }
