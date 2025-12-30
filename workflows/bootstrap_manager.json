@@ -1,0 +1,166 @@
+{
+    "name": "Bootstrap Error Handler",
+    "nodes": [
+        {
+            "parameters": {},
+            "name": "Manual Trigger",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                100,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://raw.githubusercontent.com/YOUR_GIT/REPO/main/workflows/error_capture.json",
+                "method": "GET",
+                "dataPropertyName": "workflow_data",
+                "responseFormat": "json"
+            },
+            "name": "Fetch Capture WF",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                300,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "workflow",
+                "operation": "create",
+                "name": "Universal Error Capture",
+                "active": true
+            },
+            "name": "Create Capture WF",
+            "type": "n8n-nodes-base.n8n",
+            "typeVersion": 1,
+            "position": [
+                500,
+                300
+            ],
+            "credentials": {
+                "n8nApi": {
+                    "id": "YOUR_N8N_API_CREDENTIAL_ID",
+                    "name": "n8n API"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "resource": "workflow",
+                "operation": "getAll",
+                "returnAll": true
+            },
+            "name": "Get All Workflows",
+            "type": "n8n-nodes-base.n8n",
+            "typeVersion": 1,
+            "position": [
+                700,
+                300
+            ],
+            "credentials": {
+                "n8nApi": {
+                    "id": "YOUR_N8N_API_CREDENTIAL_ID",
+                    "name": "n8n API"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "functionCode": "// Update settings for all workflows\nconst captureWfId = $items(\"Create Capture WF\")[0].json.id;\nconst allWorkflows = $items(\"Get All Workflows\");\n\nconst updates = [];\n\nfor (const wf of allWorkflows) {\n    const wfData = wf.json;\n    if (wfData.id === captureWfId) continue;\n    if (wfData.name === \"Bootstrap Error Handler\") continue;\n\n    if (wfData.settings && wfData.settings.errorWorkflow === captureWfId) continue;\n\n    updates.push({\n        id: wfData.id,\n        settings: {\n            ...wfData.settings,\n            errorWorkflow: captureWfId\n        }\n    });\n}\n\nreturn updates.map(u => ({ json: u }));"
+            },
+            "name": "Prepare Updates",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "workflow",
+                "operation": "update",
+                "id": "={{$json.id}}",
+                "updateFields": {
+                    "settings": "={{$json.settings}}"
+                }
+            },
+            "name": "Update Workflows",
+            "type": "n8n-nodes-base.n8n",
+            "typeVersion": 1,
+            "position": [
+                1100,
+                300
+            ],
+            "credentials": {
+                "n8nApi": {
+                    "id": "YOUR_N8N_API_CREDENTIAL_ID",
+                    "name": "n8n API"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Manual Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Capture WF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Capture WF": {
+            "main": [
+                [
+                    {
+                        "node": "Create Capture WF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Capture WF": {
+            "main": [
+                [
+                    {
+                        "node": "Get All Workflows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get All Workflows": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Updates",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Updates": {
+            "main": [
+                [
+                    {
+                        "node": "Update Workflows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {},
+    "staticData": null,
+    "tags": []
+}
