@@ -112,9 +112,22 @@
         },
         {
             "parameters": {
+                "jsCode": "const truncate = (str, len) => str.length > len ? str.substring(0, len) + '...' : str;\n\nfunction escapeMarkdownV2(text) {\n  if (!text) return '';\n  return text.toString().replace(/[_*[\\]()~`>#+\\-=|{}.!]/g, '\\\\$&');\n}\n\nconst item = $json;\nconst workflowName = item.workflow_name || 'Unknown Workflow';\nconst executionId = item.execution_id || 'N/A';\nconst errorMessage = truncate(item.error_message || 'No error message provided', 500);\nconst stackTrace = truncate(item.stack_trace || 'No stack trace available', 2000);\n\n// Constructing the final message with escaping\nconst escapedName = escapeMarkdownV2(workflowName);\nconst escapedExec = escapeMarkdownV2(executionId);\nconst escapedMsg = escapeMarkdownV2(errorMessage);\nconst escapedStack = escapeMarkdownV2(stackTrace);\n\nconst text = `⚠️ *Error in ${escapedName}*\\n\\n` +\n             `📄 Execution: \\`${escapedExec}\\`\\n` +\n             `❌ Message: ${escapedMsg}\\n\\n` +\n             `📖 *Stack Trace:*\\n\\`\\`\\`\\n${escapedStack}\\n\\`\\`\\`\\n`;\n\nreturn {\n  formattedText: text,\n  rawId: item.id\n};"
+            },
+            "name": "Format Notification",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                600,
+                900
+            ]
+        },
+        {
+            "parameters": {
                 "chatId": "={{$node[\"Config\"].json[\"TELEGRAM_CHAT_ID\"]}}",
-                "text": "=⚠️ **Error in {{$json.workflow_name}}**\n\n📄 Execution: `{{$json.execution_id}}`\n❌ Message: {{$json.error_message}}",
+                "text": "={{$json.formattedText}}",
                 "additionalFields": {
+                    "parse_mode": "MarkdownV2",
                     "messgeThreadId": "={{$node[\"Config\"].json[\"TELEGRAM_THREAD_ID\"]}}"
                 }
             },
@@ -122,7 +135,7 @@
             "type": "n8n-nodes-base.telegram",
             "typeVersion": 1,
             "position": [
-                600,
+                800,
                 800
             ],
             "credentials": {
@@ -145,7 +158,7 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
             "position": [
-                800,
+                1000,
                 1000
             ]
         },
@@ -154,14 +167,14 @@
                 "operation": "executeQuery",
                 "query": "UPDATE error_logs SET sent_to_tg = TRUE WHERE id = $1",
                 "additionalFields": {
-                    "queryParams": "={{$json.id}}"
+                    "queryParams": "={{$json.rawId || $json.id}}"
                 }
             },
             "name": "Mark Sent",
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
             "position": [
-                1000,
+                1200,
                 800
             ],
             "credentials": {
@@ -176,14 +189,14 @@
                 "operation": "executeQuery",
                 "query": "UPDATE error_logs SET processing_attempts = processing_attempts + 1, last_attempt = NOW() WHERE id = $1",
                 "additionalFields": {
-                    "queryParams": "={{$json.id}}"
+                    "queryParams": "={{$json.rawId || $json.id}}"
                 }
             },
             "name": "Mark Failed",
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
             "position": [
-                1000,
+                1200,
                 1100
             ],
             "credentials": {
@@ -229,6 +242,17 @@
             ]
         },
         "SplitInBatches": {
+            "main": [
+                [
+                    {
+                        "node": "Format Notification",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Notification": {
             "main": [
                 [
                     {

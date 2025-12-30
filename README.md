@@ -1,52 +1,47 @@
 # Universal n8n Error Handler Deployment Guide
 
-This repository contains a robust error handling system for n8n, featuring database logging, Telegram notifications with Webhook fallback, and a self-healing bootstrap mechanism.
+# Universal n8n Error Handler (Unified)
 
-**Repo**: [artdearthouse/n8n_error_handler](https://github.com/artdearthouse/n8n_error_handler)
+A robust, "indestructible" error handling system for n8n. It captures errors from any workflow, logs them to a PostgreSQL database, and sends formatted notifications to Telegram with a Webhook fallback.
 
-## Prerequisites
+---
 
-1.  **PostgreSQL Database**: Accessible by your n8n instances.
-2.  **Telegram Bot**: Token and Chat ID.
-3.  **n8n instance**: With standard nodes needed.
+## ⚡️ Key Features
+- **Unified Workflow**: One file handles both error capture and periodic processing.
+- **Robust Notifications**: Automatic Telegram MarkdownV2 escaping and log truncation (no more 400 Bad Request errors).
+- **Double Safety**: If Telegram fails, it automatically attempts a Webhook fallback.
+- **Persistence**: Errors are stored in DB first, ensuring no data loss if Telegram is down.
 
-## Installation
+---
+
+## 🚀 Manual Deployment (Recommended)
 
 ### 1. Database Setup
-Run the SQL script in your PostgreSQL database to create the required table:
-
+Run the initialization script on your PostgreSQL instance:
 ```bash
-psql -h <host> -U <user> -d <database> -f sql/init.sql
+# Connect to your postgres and run:
+psql -h your-host -U your-user -d your-db -f sql/init.sql
 ```
 
-### 2. Configure Credentials in n8n
-Ensure the following credentials exist in your n8n instance (names can be adjusted, but you might need to edit the JSON):
-*   `Postgres Default` (Postgres)
-*   `Telegram Default` (Telegram API)
-*   `n8n API` (n8n Public API, for the bootstrapper)
+### 2. Workflow Import
+1.  Download [workflows/n8n_error_handler.json](https://raw.githubusercontent.com/artdearthouse/n8n_error_handler/main/workflows/n8n_error_handler.json).
+2.  In n8n, go to **Workflows > Add Workflow > Import from File**.
+3.  Open the **Config** node and fill in your details:
+    - `TELEGRAM_CHAT_ID`: Your Chat ID.
+    - `TELEGRAM_THREAD_ID`: Thread ID (if using Topics).
+    - `WEBHOOK_URL`: Your fallback webhook.
 
-### 3. Deploy via Bootstrap
-1.  Create a new Workflow in n8n.
-2.  Import `workflows/bootstrap_manager.json` manually (Copy-Paste JSON content).
-3.  **Configure**:
-    *   Open the `Configuration` node (first node).
-    *   Fill in your values for:
-        *   `POSTGRES_CREDENTIAL_ID`
-        *   `TELEGRAM_CREDENTIAL_ID`
-        *   `N8N_API_CREDENTIAL_ID`
-        *   `TELEGRAM_CHAT_ID`
-        *   `TELEGRAM_THREAD_ID`
-        *   `WEBHOOK_URL`
-4.  Execute the workflow manually.
+### 3. Connect Credentials
+Ensure you have the following credentials configured in n8n and selected in the respective nodes:
+- **Postgres**: For `Log to DB`, `Fetch Pending`, and `Mark Sent` nodes.
+- **Telegram**: For the `Telegram` node.
 
-**What happens:**
-*   It downloads `n8n_error_handler`.
-*   If `n8n_error_handler` exists, it **DELETES** it first.
-*   It **injects your credentials** into the new one.
-*   It creates the new `n8n_error_handler` in your n8n instance.
-*   It configured ALL other workflows to use the NEW `n8n_error_handler` ID.
-*   It updates itself to the latest version.
+---
 
-### 4. Maintenance
-*   To update the Error Handler logic across all servers, simple push changes to Git, and run `Bootstrap Manager` on each server.
+## 🛠 Usage
+To protect any workflow:
+1.  Open the workflow settings (Gear icon).
+2.  Set **Error Workflow** to `n8n_error_handler`.
+3.  Save. 
 
+Now, any unhandled error will be automatically caught, logged, and sent to your Telegram.
