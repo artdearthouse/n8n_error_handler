@@ -52,44 +52,16 @@
         },
         {
             "parameters": {
-                "url": "https://raw.githubusercontent.com/artdearthouse/n8n_error_handler/main/workflows/error_capture.json",
+                "url": "https://raw.githubusercontent.com/artdearthouse/n8n_error_handler/main/workflows/n8n_error_handler.json",
                 "method": "GET",
                 "responseFormat": "json"
             },
-            "name": "Fetch Capture",
+            "name": "Fetch Handler",
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
             "position": [
                 400,
-                200
-            ]
-        },
-        {
-            "parameters": {
-                "url": "https://raw.githubusercontent.com/artdearthouse/n8n_error_handler/main/workflows/error_processor.json",
-                "method": "GET",
-                "responseFormat": "json"
-            },
-            "name": "Fetch Processor",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                400,
-                400
-            ]
-        },
-        {
-            "parameters": {
-                "url": "https://raw.githubusercontent.com/artdearthouse/n8n_error_handler/main/workflows/bootstrap_manager.json",
-                "method": "GET",
-                "responseFormat": "json"
-            },
-            "name": "Fetch Bootstrap",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                400,
-                600
+                300
             ]
         },
         {
@@ -105,8 +77,8 @@
             "type": "n8n-nodes-base.n8n",
             "typeVersion": 1,
             "position": [
-                400,
-                800
+                600,
+                300
             ],
             "credentials": {
                 "n8nApi": {
@@ -117,13 +89,32 @@
         },
         {
             "parameters": {
-                "functionCode": "const config = $items(\"Configuration\")[0].json;\nconst existing = $items(\"Get Existing\");\n\nfunction replaceConfig(jsonObj) {\n    let str = JSON.stringify(jsonObj);\n    str = str.replace(/YOUR_POSTGRES_CREDENTIAL_ID/g, config.POSTGRES_CREDENTIAL_ID);\n    str = str.replace(/YOUR_TELEGRAM_CREDENTIAL_ID/g, config.TELEGRAM_CREDENTIAL_ID);\n    str = str.replace(/YOUR_N8N_API_CREDENTIAL_ID/g, config.N8N_API_CREDENTIAL_ID);\n    str = str.replace(/YOUR_CHAT_ID/g, config.TELEGRAM_CHAT_ID);\n    str = str.replace(/YOUR_THREAD_ID/g, config.TELEGRAM_THREAD_ID);\n    str = str.replace(/YOUR_WEBHOOK_URL/g, config.WEBHOOK_URL);\n    return JSON.parse(str);\n}\n\nconst captureRaw = $items(\"Fetch Capture\")[0].json;\nconst processorRaw = $items(\"Fetch Processor\")[0].json;\nconst bootstrapRaw = request = $items(\"Fetch Bootstrap\")[0].json;\n\n// Helper to find existing ID\nfunction findId(name) {\n    const found = existing.find(e => e.json.name === name);\n    return found ? found.json.id : null;\n}\n\nconst captureId = findId(\"n8n_error_handler\");\nconst processorId = findId(\"Error Processor\");\nconst bootstrapId = $workflow.id;\n\nreturn [{\n    json: {\n        capture: {\n            data: replaceConfig(captureRaw),\n            method: captureId ? 'PUT' : 'POST',\n            endpoint: captureId ? `/workflows/${captureId}` : '/workflows'\n        },\n        processor: {\n            data: replaceConfig(processorRaw),\n            method: processorId ? 'PUT' : 'POST',\n            endpoint: processorId ? `/workflows/${processorId}` : '/workflows'\n        },\n        bootstrap: {\n            data: bootstrapRaw,\n            method: 'PUT',\n            endpoint: `/workflows/${bootstrapId}`\n        }\n    }\n}];"
+                "functionCode": "const existing = $items(\"Get Existing\");\nconst handler = existing.find(w => w.json.name === \"n8n_error_handler\");\n\nif (handler) {\n    return [{ json: { id: handler.json.id, exists: true } }];\n} else {\n    return [{ json: { exists: false } }];\n}"
             },
-            "name": "Prepare Workflows",
+            "name": "Check Existence",
             "type": "n8n-nodes-base.function",
             "typeVersion": 1,
             "position": [
-                600,
+                800,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$json.exists}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "If Exists",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1000,
                 300
             ]
         },
@@ -131,18 +122,16 @@
             "parameters": {
                 "authentication": "predefinedCredentialType",
                 "nodeCredentialType": "n8nApi",
-                "url": "={{$node[\"Configuration\"].json[\"WEBHOOK_URL\"].split('/webhook')[0] + '/api/v1' + $json.capture.endpoint}}",
-                "method": "={{$json.capture.method}}",
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={{$json.capture.data}}"
+                "url": "={{$node[\"Configuration\"].json[\"WEBHOOK_URL\"].split('/webhook')[0] + '/api/v1/workflows/' + $json.id}}",
+                "method": "DELETE",
+                "sendBody": false
             },
-            "name": "Save Capture",
+            "name": "Delete Old",
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
             "position": [
-                800,
-                300
+                1200,
+                200
             ],
             "credentials": {
                 "n8nApi": {
@@ -153,19 +142,31 @@
         },
         {
             "parameters": {
+                "functionCode": "const config = $items(\"Configuration\")[0].json;\nconst raw = $items(\"Fetch Handler\")[0].json;\n\n// 1. Inject Config Node values\n// We need to find the node named \"Config\" in the raw JSON\nconst nodes = raw.nodes;\nconst configNode = nodes.find(n => n.name === \"Config\");\n\nif (configNode && configNode.parameters && configNode.parameters.values && configNode.parameters.values.string) {\n    // Update the values in the Config node logic\n    // ACTUALLY, the easy way is string replacement again because we used placeholders like YOUR_CHAT_ID in the template.\n    // Let's stick to string replacement for simplicity and robustness.\n\n    let str = JSON.stringify(raw);\n    str = str.replace(/YOUR_POSTGRES_CREDENTIAL_ID/g, config.POSTGRES_CREDENTIAL_ID);\n    str = str.replace(/YOUR_TELEGRAM_CREDENTIAL_ID/g, config.TELEGRAM_CREDENTIAL_ID);\n    str = str.replace(/YOUR_N8N_API_CREDENTIAL_ID/g, config.N8N_API_CREDENTIAL_ID);\n    str = str.replace(/YOUR_CHAT_ID/g, config.TELEGRAM_CHAT_ID);\n    str = str.replace(/YOUR_THREAD_ID/g, config.TELEGRAM_THREAD_ID);\n    str = str.replace(/YOUR_WEBHOOK_URL/g, config.WEBHOOK_URL);\n    return [{ json: JSON.parse(str) }];\n}\n\nreturn [{ json: raw }];"
+            },
+            "name": "Prepare New",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1400,
+                300
+            ]
+        },
+        {
+            "parameters": {
                 "authentication": "predefinedCredentialType",
                 "nodeCredentialType": "n8nApi",
-                "url": "={{$node[\"Configuration\"].json[\"WEBHOOK_URL\"].split('/webhook')[0] + '/api/v1' + $json.processor.endpoint}}",
-                "method": "={{$json.processor.method}}",
+                "url": "={{$node[\"Configuration\"].json[\"WEBHOOK_URL\"].split('/webhook')[0] + '/api/v1/workflows'}}",
+                "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={{$json.processor.data}}"
+                "jsonBody": "={{$json}}"
             },
-            "name": "Save Processor",
+            "name": "Create New",
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
             "position": [
-                1000,
+                1600,
                 300
             ],
             "credentials": {
@@ -188,7 +189,7 @@
             "type": "n8n-nodes-base.n8n",
             "typeVersion": 1,
             "position": [
-                1200,
+                1800,
                 300
             ],
             "credentials": {
@@ -200,13 +201,13 @@
         },
         {
             "parameters": {
-                "functionCode": "// Update settings for all workflows\n// Logic: Capture ID is now known (either we created it or updated it)\n// We can get it from the 'Save Capture' response if it was POST, or we knew it from Prepare.\n// A simpler way is to just look for 'n8n_error_handler' in 'Get All Workflows' again.\n\nconst allWorkflows = $items(\"Get All Workflows\");\nconst captureWf = allWorkflows.find(w => w.json.name === 'n8n_error_handler');\nif (!captureWf) throw new Error(\"Could not find n8n_error_handler ID after save\");\n\nconst captureWfId = captureWf.json.id;\nconst config = $node[\"Configuration\"].json;\nconst baseUrl = config.WEBHOOK_URL.split('/webhook')[0] + '/api/v1';\n\nconst updates = [];\n\nfor (const wf of allWorkflows) {\n    const wfData = wf.json;\n    if (wfData.id === captureWfId) continue;\n    if (wfData.name === \"Bootstrap Error Handler\") continue;\n\n    if (wfData.settings && wfData.settings.errorWorkflow === captureWfId) continue;\n\n    updates.push({\n        url: `${baseUrl}/workflows/${wfData.id}`,\n        body: {\n            settings: {\n                ...wfData.settings,\n                errorWorkflow: captureWfId\n            }\n        }\n    });\n}\n\nreturn updates.map(u => ({ json: u }));"
+                "functionCode": "const createOutput = $items(\"Create New\")[0].json;\nconst newHandlerId = createOutput.id;\n\nconst allWorkflows = $items(\"Get All Workflows\");\nconst config = $node[\"Configuration\"].json;\nconst baseUrl = config.WEBHOOK_URL.split('/webhook')[0] + '/api/v1';\n\nconst updates = [];\n\nfor (const wf of allWorkflows) {\n    const wfData = wf.json;\n    if (wfData.id === newHandlerId) continue;\n    if (wfData.name === \"Bootstrap Error Handler\") continue;\n\n    if (wfData.settings && wfData.settings.errorWorkflow === newHandlerId) continue;\n\n    updates.push({\n        url: `${baseUrl}/workflows/${wfData.id}`,\n        body: {\n            settings: {\n                ...wfData.settings,\n                errorWorkflow: newHandlerId\n            }\n        }\n    });\n}\n\nreturn updates.map(u => ({ json: u }));"
             },
             "name": "Prepare Settings Updates",
             "type": "n8n-nodes-base.function",
             "typeVersion": 1,
             "position": [
-                1400,
+                2000,
                 300
             ]
         },
@@ -224,31 +225,7 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
             "position": [
-                1600,
-                300
-            ],
-            "credentials": {
-                "n8nApi": {
-                    "id": "={{$node[\"Configuration\"].json[\"N8N_API_CREDENTIAL_ID\"]}}",
-                    "name": "n8n API"
-                }
-            }
-        },
-        {
-            "parameters": {
-                "authentication": "predefinedCredentialType",
-                "nodeCredentialType": "n8nApi",
-                "url": "={{$node[\"Configuration\"].json[\"WEBHOOK_URL\"].split('/webhook')[0] + '/api/v1' + $node[\"Prepare Workflows\"].json.bootstrap.endpoint}}",
-                "method": "PUT",
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={{$node[\"Prepare Workflows\"].json.bootstrap.data}}"
-            },
-            "name": "Self Update",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                1800,
+                2200,
                 300
             ],
             "credentials": {
@@ -275,36 +252,14 @@
             "main": [
                 [
                     {
-                        "node": "Fetch Capture",
+                        "node": "Fetch Handler",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Fetch Capture": {
-            "main": [
-                [
-                    {
-                        "node": "Fetch Processor",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Fetch Processor": {
-            "main": [
-                [
-                    {
-                        "node": "Fetch Bootstrap",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Fetch Bootstrap": {
+        "Fetch Handler": {
             "main": [
                 [
                     {
@@ -319,36 +274,65 @@
             "main": [
                 [
                     {
-                        "node": "Prepare Workflows",
+                        "node": "Check Existence",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Prepare Workflows": {
+        "Check Existence": {
             "main": [
                 [
                     {
-                        "node": "Save Capture",
+                        "node": "If Exists",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Save Capture": {
+        "If Exists": {
             "main": [
                 [
                     {
-                        "node": "Save Processor",
+                        "node": "Delete Old",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Prepare New",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Save Processor": {
+        "Delete Old": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare New",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare New": {
+            "main": [
+                [
+                    {
+                        "node": "Create New",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create New": {
             "main": [
                 [
                     {
@@ -381,17 +365,6 @@
                 ]
             ]
         },
-        "Apply Settings": {
-            "main": [
-                [
-                    {
-                        "node": "Self Update",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        }
     },
     "settings": {},
     "staticData": null,

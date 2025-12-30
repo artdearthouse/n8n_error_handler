@@ -40,11 +40,13 @@ Ensure the following credentials exist in your n8n instance (names can be adjust
 4.  Execute the workflow manually.
 
 **What happens:**
-*   It downloads `n8n_error_handler` and `Error Processor`.
-*   It **injects your credentials** into them automatically.
-*   It deploys/updates them in your n8n instance.
-*   It configured ALL other workflows to use `n8n_error_handler` as their Error Workflow.
+*   It downloads `n8n_error_handler`.
+*   If `n8n_error_handler` exists, it **DELETES** it first.
+*   It **injects your credentials** into the new one.
+*   It creates the new `n8n_error_handler` in your n8n instance.
+*   It configured ALL other workflows to use the NEW `n8n_error_handler` ID.
 *   It updates itself to the latest version.
 
 ### 4. Maintenance
 *   To update the Error Handler logic across all servers, simple push changes to Git, and run `Bootstrap Manager` on each server.
+

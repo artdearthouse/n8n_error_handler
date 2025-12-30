@@ -1,6 +1,65 @@
 {
-    "name": "Error Processor",
+    "name": "n8n_error_handler",
     "nodes": [
+        {
+            "parameters": {
+                "values": {
+                    "string": [
+                        {
+                            "name": "TELEGRAM_CHAT_ID",
+                            "value": "YOUR_CHAT_ID"
+                        },
+                        {
+                            "name": "TELEGRAM_THREAD_ID",
+                            "value": "YOUR_THREAD_ID"
+                        },
+                        {
+                            "name": "WEBHOOK_URL",
+                            "value": "YOUR_WEBHOOK_URL"
+                        }
+                    ]
+                }
+            },
+            "name": "Config",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                0,
+                300
+            ]
+        },
+        {
+            "parameters": {},
+            "name": "Error Trigger",
+            "type": "n8n-nodes-base.errorTrigger",
+            "typeVersion": 1,
+            "position": [
+                0,
+                600
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO error_logs (workflow_name, execution_id, error_message, stack_trace) VALUES ($1, $2, $3, $4)",
+                "additionalFields": {
+                    "queryParams": "={{$json.workflow.name}},={{$json.execution.id}},={{$json.message}},={{$json.stack}}"
+                }
+            },
+            "name": "Log to DB",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                250,
+                600
+            ],
+            "credentials": {
+                "postgres": {
+                    "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+                    "name": "Postgres Default"
+                }
+            }
+        },
         {
             "parameters": {
                 "rule": {
@@ -15,8 +74,8 @@
             "type": "n8n-nodes-base.cron",
             "typeVersion": 1,
             "position": [
-                100,
-                300
+                0,
+                900
             ]
         },
         {
@@ -28,8 +87,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
             "position": [
-                300,
-                300
+                200,
+                900
             ],
             "credentials": {
                 "postgres": {
@@ -47,24 +106,24 @@
             "type": "n8n-nodes-base.splitInBatches",
             "typeVersion": 1,
             "position": [
-                500,
-                300
+                400,
+                900
             ]
         },
         {
             "parameters": {
-                "chatId": "YOUR_CHAT_ID",
+                "chatId": "={{$node[\"Config\"].json[\"TELEGRAM_CHAT_ID\"]}}",
                 "text": "=⚠️ **Error in {{$json.workflow_name}}**\n\n📄 Execution: `{{$json.execution_id}}`\n❌ Message: {{$json.error_message}}",
                 "additionalFields": {
-                    "messgeThreadId": "YOUR_THREAD_ID"
+                    "messgeThreadId": "={{$node[\"Config\"].json[\"TELEGRAM_THREAD_ID\"]}}"
                 }
             },
             "name": "Telegram",
             "type": "n8n-nodes-base.telegram",
             "typeVersion": 1,
             "position": [
-                700,
-                200
+                600,
+                800
             ],
             "credentials": {
                 "telegramApi": {
@@ -76,7 +135,7 @@
         },
         {
             "parameters": {
-                "url": "YOUR_WEBHOOK_URL",
+                "url": "={{$node[\"Config\"].json[\"WEBHOOK_URL\"]}}",
                 "method": "POST",
                 "sendBody": true,
                 "specifyBody": "json",
@@ -86,8 +145,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
             "position": [
-                900,
-                400
+                800,
+                1000
             ]
         },
         {
@@ -102,8 +161,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
             "position": [
-                1100,
-                200
+                1000,
+                800
             ],
             "credentials": {
                 "postgres": {
@@ -124,8 +183,8 @@
             "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
             "position": [
-                1100,
-                500
+                1000,
+                1100
             ],
             "credentials": {
                 "postgres": {
@@ -136,6 +195,17 @@
         }
     ],
     "connections": {
+        "Error Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Log to DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
         "Schedule": {
             "main": [
                 [
